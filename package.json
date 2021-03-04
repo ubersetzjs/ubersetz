@@ -1,29 +1,18 @@
 {
   "name": "ubersetz",
-  "version": "0.3.1",
+  "version": "1.0.0",
   "description": "",
   "main": "dist/index.js",
-  "bin": {
-    "ubersetz": "dist/cli.js"
-  },
   "scripts": {
     "prepare": "npm run build",
-    "dev": "ts-node src/index.ts",
-    "start": "node dist/index.js",
-    "build": "rm -r ./dist; tsc && chmod +x dist/cli.js",
+    "build": "rm -r ./dist; tsc",
     "lint": "eslint --quiet --ext .ts --ext .tsx ."
   },
   "keywords": [],
   "author": "Max Nowack <max.nowack@gmail.com>",
   "license": "MIT",
   "devDependencies": {
-    "@types/fs-extra": "^9.0.5",
-    "@types/ignore-walk": "^3.0.1",
-    "@types/listr": "^0.14.2",
-    "@types/lodash.sortby": "^4.7.6",
     "@types/node": "^14.14.12",
-    "@types/p-map": "^2.0.0",
-    "@types/rc": "^1.1.0",
     "@typescript-eslint/eslint-plugin": "^4.9.1",
     "@typescript-eslint/parser": "^4.9.1",
     "eslint": "^7.15.0",
@@ -35,16 +24,5 @@
     "ts-node": "^9.1.1",
     "typescript": "^4.1.2"
   },
-  "dependencies": {
-    "fs-extra": "^9.0.1",
-    "global-dirs": "^2.1.0",
-    "ignore-walk": "^3.0.3",
-    "listr": "^0.14.3",
-    "lodash.sortby": "^4.7.0",
-    "p-filter": "^2.1.0",
-    "p-map": "^4.0.0",
-    "p-queue": "^6.6.2",
-    "rc": "^1.2.8",
-    "rxjs": "^6.6.3"
-  }
+  "dependencies": {}
 }
