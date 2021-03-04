@@ -10,11 +10,10 @@ class LocaleManager extends EventEmitter {
   }
 
   public setLocale(locale: string): Promise<void> // eslint-disable-next-line lines-between-class-members
-  public setLocale(locale: string, file: string): Promise<void> // eslint-disable-next-line lines-between-class-members
   public setLocale(locale: string, phrases: Record<string, string>): Promise<void> // eslint-disable-next-line lines-between-class-members
   public async setLocale(
     locale: string,
-    fileOrMessages?: string | Record<string, string>,
+    fileOrMessages?: Record<string, string>,
   ): Promise<void> {
     if (!this.phraseCache[locale]) {
       await this.loadLocale(locale, fileOrMessages)
@@ -23,13 +22,12 @@ class LocaleManager extends EventEmitter {
     this.emit('setLocale', locale)
   }
 
-  public async loadLocale(locale: string, fileOrMessages?: string | Record<string, string>) {
+  public async loadLocale(locale: string, fileOrMessages?: Record<string, string>) {
     if (!fileOrMessages) {
       throw new Error(`Cannot load locale '${locale}' without filename or phrases provided`)
     }
-    this.phraseCache[locale] = typeof fileOrMessages === 'string'
-      ? (await import(fileOrMessages)) as Record<string, string>
-      : fileOrMessages
+    this.phraseCache[locale] = fileOrMessages
+    return Promise.resolve()
   }
 
   public translate(
