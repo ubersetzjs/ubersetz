@@ -32,7 +32,7 @@ class LocaleManager extends EventEmitter {
     return Promise.resolve()
   }
 
-  public async loadLocaleSync(locale: string, fileOrMessages?: Record<string, string>) {
+  public loadLocaleSync(locale: string, fileOrMessages?: Record<string, string>) {
     if (!fileOrMessages) {
       throw new Error(`Cannot load locale '${locale}' without filename or phrases provided`)
     }
