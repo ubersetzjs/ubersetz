@@ -1,8 +1,22 @@
 {
-  "files": [],
-  "references": [
-    { "path": "./packages/core" },
-    { "path": "./packages/cli" },
-    { "path": "./packages/plugin-deepl" }
+  "compilerOptions": {
+    "target": "esnext",
+    "module": "esnext",
+    "lib": ["esnext"],
+    "moduleResolution": "bundler",
+    "esModuleInterop": true,
+    "isolatedModules": true,
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "strictNullChecks": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "skipDefaultLibCheck": true,
+    "allowImportingTsExtensions": true,
+    "noEmit": true
+  },
+  "exclude": [
+    "**/node_modules",
+    "**/dist"
   ]
 }

@@ -114,8 +114,10 @@ const translate: AutotranslationFunction = async (options) => {
       simplifyTargetLang(targetLanguage),
       options.informal == null ? {} : { formality: options.informal ? 'less' : 'more' },
     ))
+    const textResult = Array.isArray(result) ? result[0] : result
+    if (!textResult) throw new Error('Translation failed')
     return {
-      text: preserveVariables(options.text, result.text),
+      text: preserveVariables(options.text, textResult.text),
     }
   }
 
