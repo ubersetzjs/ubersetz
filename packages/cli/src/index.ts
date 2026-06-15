@@ -1,8 +1,9 @@
 #!/usr/bin/env node
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+
 import path from 'path'
 import fs from 'fs/promises'
-import Listr, { ListrTask } from 'listr'
+import type { ListrTask } from 'listr'
+import Listr from 'listr'
 import pMap from 'p-map'
 import sortBy from 'lodash.sortby'
 import yargs from 'yargs'
@@ -10,7 +11,7 @@ import { hideBin } from 'yargs/helpers'
 import findFiles from './utils/findFiles'
 import config from './config'
 import extractPhrase from './extractPhrase'
-import { Context, Phrase } from './types'
+import type { Context, Phrase } from './types'
 import canReadFile from './utils/canReadFile'
 import getPhrasesFromFile from './utils/getPhrasesFromFile'
 import getCountryFlag from './utils/getCountryFlag'
@@ -21,14 +22,14 @@ import extractPlural from './utils/extractPlural'
 import sortObject from './utils/sortObject'
 import { stringify } from './utils/json'
 
-const { argv } = yargs(hideBin(process.argv))
+const argv = yargs(hideBin(process.argv)).parseSync()
 const options = {
-  _: [process.cwd()],
-  autotranslation: true,
-  delete: true,
-  copy: true,
-  write: true,
-  fail: false,
+  '_': [process.cwd()],
+  'autotranslation': true,
+  'delete': true,
+  'copy': true,
+  'write': true,
+  'fail': false,
   'autotranslate-parallel': true,
   ...argv,
 }
@@ -37,37 +38,37 @@ const start = async () => {
   const filePath = options._[0] as string
   const tasks = new Listr<Context>([{
     title: 'searching files',
-    task: ctx => findFiles(filePath, {
+    task: context => findFiles(filePath, {
       ignoreFiles: ['.gitignore', '.ubersetzignore'],
-      pattern: new RegExp(config.getPatternExtensions().map(e => `\\.${e}$`).join('|')),
+      pattern: new RegExp(config.getPatternExtensions().map(fileExtension => String.raw`\.${fileExtension}$`).join('|')),
     }).then((files) => {
-      ctx.files = files
-      ctx.phrases = []
-      ctx.extractedPhrases = {}
-      ctx.deletedPhrases = []
-      ctx.newPhrases = []
-      ctx.changedPhrases = []
+      context.files = files
+      context.phrases = []
+      context.extractedPhrases = {}
+      context.deletedPhrases = []
+      context.newPhrases = []
+      context.changedPhrases = []
     }),
   }, {
     title: 'extracting phrases from files',
-    task: ctx => new Listr(config.getPatternExtensions().map<ListrTask<Context>>(ext => ({
-      title: ext,
+    task: context => new Listr(config.getPatternExtensions().map<ListrTask<Context>>(extension => ({
+      title: extension,
       task: async () => {
         const phrases: Phrase[] = []
-        await pMap(ctx.files, async (name) => {
-          if (!new RegExp(`\\.${ext}$`).test(name)) return
+        await pMap(context.files, async (name) => {
+          if (!new RegExp(String.raw`\.${extension}$`).test(name)) return
           const fileContent = await fs.readFile(path.join(filePath, name), 'utf8')
-          extractPhrase(fileContent, config.getPatternRegExp(ext))
+          extractPhrase(fileContent, config.getPatternRegExp(extension))
             .forEach(phrase => phrases.push(phrase))
         })
-        ctx.phrases = sortBy([...ctx.phrases || [], ...phrases], p => p.key.toLowerCase())
+        context.phrases = sortBy([...context.phrases || [], ...phrases], p => p.key.toLowerCase())
       },
     })), { concurrent: true }),
   }, {
     title: 'check phrases',
-    skip: ctx => ctx.phrases.length <= 0,
-    task: (ctx) => {
-      ctx.extractedPhrases = ctx.phrases.reduce<Record<string, string>>((memo, phrase) => {
+    skip: context => context.phrases.length <= 0,
+    task: (context) => {
+      context.extractedPhrases = context.phrases.reduce<Record<string, string>>((memo, phrase) => {
         if (memo[phrase.key] != null && memo[phrase.key] !== phrase.defaultValue) {
           throw new Error(`duplicate key '${phrase.key}', current: '${memo[phrase.key]}', new: '${phrase.defaultValue}'`)
         }
@@ -80,37 +81,37 @@ const start = async () => {
     },
   }, {
     title: 'apply plurals',
-    skip: ctx => Object.keys(ctx.extractedPhrases).length <= 0,
-    task: (ctx) => {
-      ctx.extractedPhrases = Object.keys(ctx.extractedPhrases)
+    skip: context => Object.keys(context.extractedPhrases).length <= 0,
+    task: (context) => {
+      context.extractedPhrases = Object.keys(context.extractedPhrases)
         .reduce<Record<string, string>>((memo, key) => ({
           ...memo,
-          ...extractPlural(key, ctx.extractedPhrases[key]),
+          ...extractPlural(key, context.extractedPhrases[key]),
         }), {})
     },
   }, {
     title: 'write extractions file',
     skip: () => !options.write,
-    task: async (ctx) => {
+    task: async (context) => {
       const extractsFile = path.join(filePath, config.getExtractionFilePath())
       if (await canReadFile(extractsFile)) {
         const currentPhrases = await getPhrasesFromFile(extractsFile)
-        ctx.deletedPhrases = Object.keys(currentPhrases).filter(key =>
-          ctx.extractedPhrases[key] == null)
-        ctx.newPhrases = Object.keys(ctx.extractedPhrases).filter(key =>
+        context.deletedPhrases = Object.keys(currentPhrases).filter(key =>
+          context.extractedPhrases[key] == null)
+        context.newPhrases = Object.keys(context.extractedPhrases).filter(key =>
           currentPhrases[key] == null)
-        ctx.changedPhrases = Object.keys(ctx.extractedPhrases).filter(key =>
-          currentPhrases[key] !== ctx.extractedPhrases[key])
+        context.changedPhrases = Object.keys(context.extractedPhrases).filter(key =>
+          currentPhrases[key] !== context.extractedPhrases[key])
       }
-      await writeLocale(extractsFile, ctx.extractedPhrases)
+      await writeLocale(extractsFile, context.extractedPhrases)
     },
   }, {
     title: 'deleting old phrases',
     skip: () => !options.delete || config.getLocales().length <= 0,
-    task: async (ctx) => {
+    task: async (context) => {
       await Promise.all(config.getLocales().map(async (locale) => {
         const phrases = await getPhrasesFromFile(locale.file)
-        const newPhrases = Object.keys(ctx.extractedPhrases).reduce((memo, key) => {
+        const newPhrases = Object.keys(context.extractedPhrases).reduce((memo, key) => {
           if (!phrases[key]) return memo
           return {
             ...memo,
@@ -128,25 +129,25 @@ const start = async () => {
   }, {
     title: 'copying new phrases to base locale',
     skip: () => !options.copy
-      || !config.getLocales().find(i => i.base),
-    task: async (ctx) => {
+      || !config.getLocales().some(i => i.base),
+    task: async (context) => {
       const baseLocale = config.getLocales().find(i => i.base)
       if (!baseLocale) return
       const phrases = await getPhrasesFromFile(baseLocale.file)
-      await writeLocale(baseLocale.file, Object.keys(ctx.extractedPhrases).reduce((memo, key) => ({
-        ...memo,
-        [key]: phrases[key] || ctx.extractedPhrases[key],
-      }), {}))
+      const phraseEntries = Object.keys(context.extractedPhrases)
+        .map(key => [key, phrases[key] || context.extractedPhrases[key]])
+      const sortedPhrases = Object.fromEntries(phraseEntries) as Record<string, string>
+      await writeLocale(baseLocale.file, sortedPhrases)
     },
   }, {
     title: 'checking existing phrases',
     skip: () => config.getLocales().length <= 0,
-    task: async (ctx) => {
-      ctx.locales = await pMap(config.getLocales(), async (locale) => {
+    task: async (context) => {
+      context.locales = await pMap(config.getLocales(), async (locale) => {
         const phrases = await getPhrasesFromFile(locale.file)
         const translated: string[] = []
         const untranslated: string[] = []
-        Object.keys(ctx.extractedPhrases).forEach((key) => {
+        Object.keys(context.extractedPhrases).forEach((key) => {
           if (Object.keys(phrases).includes(key)) {
             translated.push(key)
           } else {
@@ -158,15 +159,15 @@ const start = async () => {
     },
   }, {
     title: 'automatically translate new phrases',
-    skip: (ctx) => {
+    skip: (context) => {
       if (!options.autotranslation) return true
       const autotranslationOptions = config.getAutotranslationOptions()
       if (!autotranslationOptions.plugin) return true
-      return !ctx.locales.find(l => l.autotranslate && l.untranslated.length > 0)
+      return !context.locales.some(l => l.autotranslate && l.untranslated.length > 0)
     },
-    task: async (ctx) => {
+    task: async (context) => {
       const autotranslationOptions = config.getAutotranslationOptions()
-      const autotranslateLocales = ctx.locales.filter(l => l.autotranslate)
+      const autotranslateLocales = context.locales.filter(l => l.autotranslate)
       const autotranslate = await getAutotranslationPlugin(autotranslationOptions)
 
       return new Listr([{
@@ -175,7 +176,7 @@ const start = async () => {
           title: `${getCountryFlag(locale.code)}   ${locale.name}`,
           task: () => autotranslatePhrases({
             locale,
-            phrases: ctx.extractedPhrases,
+            phrases: context.extractedPhrases,
             autotranslate,
             baseLocale: config.getBaseLocale(),
             concurrency: autotranslationOptions.concurrency || 10,
@@ -187,7 +188,7 @@ const start = async () => {
           if (autotranslate.kill) {
             return autotranslate.kill()
           }
-          return undefined
+          return
         },
       }])
     },
@@ -195,6 +196,7 @@ const start = async () => {
   const result = await tasks.run()
   const { newPhrases, changedPhrases } = result
 
+  /* eslint-disable no-console */
   let shouldFail = result.deletedPhrases.length > 0
   console.log()
   console.log(`🆕  ${newPhrases.length} new phrases`)
@@ -210,6 +212,7 @@ const start = async () => {
     if (locale.autotranslated.length > 0) console.log(`\t🤖   ${locale.autotranslated.length} automatically translated`)
     if (locale.translated.length > 0) console.log(`\t🏴   ${locale.translated.length} already translated`)
   })
+  /* eslint-enable no-console */
 
   if (options.fail && shouldFail) {
     process.exit(1)
@@ -218,7 +221,10 @@ const start = async () => {
   }
 }
 
-start().catch((err) => {
-  console.error(err)
+try {
+  await start()
+} catch (error) {
+  // eslint-disable-next-line no-console
+  console.error(error)
   process.exit(1)
-})
+}

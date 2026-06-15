@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { Worker } from 'worker_threads'
 import path from 'path'
 
@@ -12,7 +11,7 @@ function exec<T, R>(type: string, data: T, additional?: Record<string, any>): Pr
   return new Promise<R>((resolve) => {
     const receivce = (event: any) => {
       if (event.id !== myId) return
-      resolve(event.data)
+      resolve(event.data as R)
       worker.off('message', receivce)
     }
     worker.on('message', receivce)

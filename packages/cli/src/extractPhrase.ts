@@ -1,5 +1,5 @@
 import regexArray from './utils/regexArray'
-import { Phrase } from './types'
+import type { Phrase } from './types'
 
 export default function extractPhrases(content: string, pattern: RegExp) {
   const results = regexArray(pattern, content)

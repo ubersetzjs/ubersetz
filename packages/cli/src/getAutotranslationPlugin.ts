@@ -1,10 +1,10 @@
 import Module from 'module'
 import path from 'path'
-import { AutotranslationOptions, AutotranslationFunction } from './types'
+import type { AutotranslationOptions, AutotranslationFunction } from './types'
 
-const importModule = (pkg: string) => {
+const importModule = (package_: string) => {
   const relativeToPath = path.join(process.cwd(), '__placeholder__.js')
-  const module = Module.createRequire(relativeToPath).resolve(pkg)
+  const module = Module.createRequire(relativeToPath).resolve(package_)
   return import(module)
 }
 
@@ -15,10 +15,10 @@ export default async function getAutotranslationPlugin(
   try {
     const {
       default: plugin,
-    } = (await importModule(`ubersetz-plugin-${autotranslationOptions.plugin}`) as { default: AutotranslationFunction })
+    } = await importModule(`ubersetz-plugin-${autotranslationOptions.plugin}`) as { default: AutotranslationFunction }
 
     return plugin
-  } catch (ex) {
+  } catch {
     throw new Error(`Cannot find autotranslation plugin '${autotranslationOptions.plugin}'`)
   }
 }

@@ -8,15 +8,15 @@ interface Options {
   ignoreFiles?: string[],
 }
 
-export default async function findFiles(dir: string, options: Options) {
+export default async function findFiles(directory: string, options: Options) {
   const files = await walk({
-    path: dir,
+    path: directory,
     ignoreFiles: options.ignoreFiles,
   })
 
   return pFilter(files, async (name) => {
     if (name.startsWith('.git/')) return false
-    const stat = await fs.stat(path.join(dir, name))
+    const stat = await fs.stat(path.join(directory, name))
     if (stat.isDirectory()) return false
     if (options.pattern) return options.pattern.test(name)
     return true

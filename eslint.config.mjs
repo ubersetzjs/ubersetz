@@ -15,6 +15,8 @@ const { workspaces } = JSON.parse(fs.readFileSync(new URL('package.json', import
 const projectDirectories = workspaces
   .flatMap(pattern => FastGlob.sync(pattern, { onlyDirectories: true }))
   .filter(projectPath => fs.existsSync(path.join(import.meta.url, projectPath, 'package.json')))
+const packageNames = FastGlob.sync('packages/*', { onlyDirectories: true })
+  .map(directory => path.basename(directory))
 
 export default defineConfig(
   eslint.configs.recommended,
@@ -31,6 +33,7 @@ export default defineConfig(
       reportUnusedDisableDirectives: 'error',
     },
     languageOptions: {
+      globals: globals.node,
       ecmaVersion: 'latest',
       sourceType: 'module',
       parserOptions: {
@@ -75,6 +78,7 @@ export default defineConfig(
       'unicorn/prefer-event-target': 'off',
       'unicorn/filename-case': ['error', {
         cases: { camelCase: true, pascalCase: true },
+        ignore: packageNames.map(name => new RegExp(`^${name}$`, 'u')),
       }],
       'unicorn/prefer-module': 'off',
       'unicorn/no-array-reduce': 'off',
@@ -150,7 +154,7 @@ export default defineConfig(
       'coverage',
     ],
   },
-  { files: ['**/*.cjs', '**/*.js'], languageOptions: { globals: globals.node } },
+  { files: ['**/*.cjs', '**/*.js', '**/*.mjs', '**/*.mts'], languageOptions: { globals: globals.node } },
   // https://github.com/import-js/eslint-plugin-import/issues/1913#issuecomment-1034025709
   ...projectDirectories.map(projectDirectory => ({
     files: [`${projectDirectory}/**/*.{t,j}s`, `${projectDirectory}/**/*.m{t,j}s`],

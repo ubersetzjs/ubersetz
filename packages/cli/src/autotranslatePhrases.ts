@@ -1,6 +1,6 @@
 import pMap from 'p-map'
 import { Observable } from 'rxjs'
-import { AutotranslationFunction, Context } from './types'
+import type { AutotranslationFunction, Context } from './types'
 import addPhraseToFile from './utils/addPhraseToFile'
 
 const autotranslatePhrases = ({
@@ -32,7 +32,7 @@ const autotranslatePhrases = ({
         sourceLanguage: baseLocale,
         concurrency,
       })
-      // eslint-disable-next-line no-param-reassign
+
       locale.untranslated = locale.untranslated.filter(i => i !== key)
       locale.translated.push(key)
       count += 1
@@ -42,7 +42,7 @@ const autotranslatePhrases = ({
   }
   promise()
     .then(() => observer.complete())
-    .catch(err => observer.error(err))
+    .catch(error => observer.error(error))
 })
 
 export default autotranslatePhrases

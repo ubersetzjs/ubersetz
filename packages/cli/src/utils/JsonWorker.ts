@@ -32,7 +32,8 @@ port.on('message', (options: Options) => {
       })
       break
     }
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/restrict-template-expressions
-    default: throw new Error(`Unknown data type: ${(options as any).type}`)
+
+    default: { throw new Error(`Unknown data type: ${(options as any).type}`)
+    }
   }
 })

@@ -23,7 +23,7 @@ export default defineConfig({
       formats: ['cjs'],
     },
     rollupOptions: {
-      external: (id) => !id.startsWith('.') && !path.isAbsolute(id),
+      external: id => !id.startsWith('.') && !path.isAbsolute(id),
       output: {
         banner: '#!/usr/bin/env node',
       },

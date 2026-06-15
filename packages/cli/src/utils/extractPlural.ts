@@ -1,4 +1,3 @@
-// eslint-disable-next-line max-len
 const pluralRegex = /(.*){\s*(.*)\s*,\s*plural\s*,\s*one\s*{\s*(.*)\s*}\s*other\s*{\s*(.*)\s*}\s*}(.*)/igm
 
 interface ReturnValue { singular: string, plural: string }
@@ -17,7 +16,7 @@ function extractFromText(text: string): ReturnValue {
 
 function extractSingle(values: ReturnValue): ReturnValue {
   if (!new RegExp(pluralRegex).test(values.singular)) return values
-  const { singular, plural } = !values.plural ? extractFromText(values.singular) : values
+  const { singular, plural } = values.plural ? values : extractFromText(values.singular)
 
   const extractedPlural = extractFromText(plural)
   return extractSingle({

@@ -1,7 +1,8 @@
 import { EventEmitter } from 'events'
 
 type PhraseMap = Record<string, string>
-type TranslationParams = Record<string, unknown> | undefined | null
+type TranslationParameters
+  = Record<string, string | number | boolean | null | undefined> | undefined | null
 
 class LocaleManager extends EventEmitter {
   private locale: string | undefined
@@ -12,8 +13,8 @@ class LocaleManager extends EventEmitter {
     return this.locale
   }
 
-  public setLocaleSync(locale: string): void // eslint-disable-next-line lines-between-class-members
-  public setLocaleSync(locale: string, phrases: PhraseMap): void // eslint-disable-next-line lines-between-class-members
+  public setLocaleSync(locale: string): void
+  public setLocaleSync(locale: string, phrases: PhraseMap): void
   public setLocaleSync(
     locale: string,
     fileOrMessages?: PhraseMap,
@@ -25,8 +26,8 @@ class LocaleManager extends EventEmitter {
     this.emit('setLocale', locale)
   }
 
-  public setLocale(locale: string): Promise<void> // eslint-disable-next-line lines-between-class-members
-  public setLocale(locale: string, phrases: PhraseMap): Promise<void> // eslint-disable-next-line lines-between-class-members
+  public setLocale(locale: string): Promise<void>
+  public setLocale(locale: string, phrases: PhraseMap): Promise<void>
   public async setLocale(
     locale: string,
     fileOrMessages?: PhraseMap,
@@ -36,7 +37,7 @@ class LocaleManager extends EventEmitter {
     } else {
       this.setLocaleSync(locale)
     }
-    return Promise.resolve()
+    return
   }
 
   public loadLocaleSync(locale: string, fileOrMessages?: PhraseMap) {
@@ -48,12 +49,12 @@ class LocaleManager extends EventEmitter {
 
   public async loadLocale(locale: string, fileOrMessages?: PhraseMap) {
     this.loadLocaleSync(locale, fileOrMessages)
-    return Promise.resolve()
+    return
   }
 
   public translate(
     key: string,
-    params: TranslationParams,
+    parameters: TranslationParameters,
     defaultValue: string,
   ) {
     const locale = this.getLocale()
@@ -61,13 +62,13 @@ class LocaleManager extends EventEmitter {
       throw new Error('Locale not loaded')
     }
 
-    return this.translateWithLocale(locale, key, params, defaultValue)
+    return this.translateWithLocale(locale, key, parameters, defaultValue)
   }
 
   public translateWithLocale(
     locale: string,
     key: string,
-    params: TranslationParams,
+    parameters: TranslationParameters,
     defaultValue: string,
   ) {
     const phrases = this.phraseCache[locale]
@@ -76,7 +77,7 @@ class LocaleManager extends EventEmitter {
     }
 
     let id = key
-    if (params && params.count != null && params.count !== 1) {
+    if (parameters && parameters.count != null && parameters.count !== 1) {
       id = `${key}_plural`
       if (!phrases[id]) {
         id = key
@@ -88,11 +89,11 @@ class LocaleManager extends EventEmitter {
       value = defaultValue || key
     }
 
-    if (params != null) {
-      Object.keys(params).forEach((param) => {
-        value = value.replace(
-          new RegExp(`{${param}}`, 'g'),
-          params[param] == null ? '' : String(params[param]),
+    if (parameters != null) {
+      Object.keys(parameters).forEach((parameter) => {
+        value = value.replaceAll(
+          new RegExp(`{${parameter}}`, 'g'),
+          parameters[parameter] == null ? '' : String(parameters[parameter]),
         )
       })
     }

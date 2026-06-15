@@ -1,11 +1,11 @@
 import loadRc from 'rc'
-import { Config as ConfigType, AutotranslationOptions } from './types'
+import type { Config as ConfigType, AutotranslationOptions } from './types'
 
 class Config {
   private config: ConfigType
 
-  constructor(conf: ConfigType) {
-    this.config = conf
+  constructor(config: ConfigType) {
+    this.config = config
   }
 
   public getPatternExtensions() {
@@ -18,7 +18,7 @@ class Config {
   public getPatternRegExp(extension: string) {
     const pattern = this.config.patterns.find(p => p.extensions.includes(extension))
     if (!pattern) throw new Error(`Cannot find pattern for extension ${extension}`)
-    return new RegExp(pattern.pattern.replace(/{{fn}}/g, this.config.functionName), 'g')
+    return new RegExp(pattern.pattern.replaceAll('{{fn}}', this.config.functionName), 'g')
   }
 
   public getLocales() {
@@ -60,12 +60,12 @@ const defaultConfig: ConfigType = {
     file: 'locales/en.locales.json',
   }],
   patterns: [{
-    pattern: '{{fn}}\\s*\\(\\s*([\'"])(.*?)\\1\\s*,\\s*.*?\\s*,?\\s*([\'"])(.*?)\\3,?.*?\\)',
+    pattern: String.raw`{{fn}}\s*\(\s*(['"])(.*?)\1\s*,\s*.*?\s*,?\s*(['"])(.*?)\3,?.*?\)`,
     extensions: ['js', 'jsx', 'ts', 'tsx'],
   }, {
-    pattern: '{{fn}}\\s*\\(\\s*([\'"])(.*?)\\1\\s*,\\s*.*?\\s*,\\s*([\'"])(.*?)\\3,?.*?\\)',
+    pattern: String.raw`{{fn}}\s*\(\s*(['"])(.*?)\1\s*,\s*.*?\s*,\s*(['"])(.*?)\3,?.*?\)`,
     extensions: ['coffee'],
   }],
 }
 
-export default new Config(loadRc('ubersetz', defaultConfig) as ConfigType)
+export default new Config(loadRc('ubersetz', defaultConfig))
