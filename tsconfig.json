@@ -1,15 +1,8 @@
 {
-  "compilerOptions": {
-    "target": "es2017",
-    "module": "commonjs",
-    "esModuleInterop": true,
-    "declaration": true,
-    "rootDirs": ["./src"],
-    "outDir": "./dist",
-    "strict": true,
-    "downlevelIteration": true,
-    "lib": ["es2017", "dom"],
-    "baseUrl": ".",
-    "noErrorTruncation": true,
-  }
+  "files": [],
+  "references": [
+    { "path": "./packages/core" },
+    { "path": "./packages/cli" },
+    { "path": "./packages/plugin-deepl" }
+  ]
 }
