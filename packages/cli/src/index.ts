@@ -1,5 +1,4 @@
-#!/usr/bin/env node
-
+/* eslint-disable unicorn/no-process-exit */
 import path from 'path'
 import fs from 'fs/promises'
 import type { ListrTask } from 'listr'
@@ -259,10 +258,10 @@ async function runExtraction(options: CliOptions) {
   }
 }
 
-const rawArguments = hideBin(process.argv)
-const [commandName] = rawArguments
+async function main() {
+  const rawArguments = hideBin(process.argv)
+  const [commandName] = rawArguments
 
-try {
   if (commandName === 'migrate') {
     const argv = yargs(rawArguments.slice(1))
       .option('dry-run', { type: 'boolean', default: false })
@@ -278,8 +277,15 @@ try {
     _: [typeof argv._[0] === 'string' ? argv._[0] : process.cwd()],
   }
   await runExtraction(options)
-} catch (error) {
-  // eslint-disable-next-line no-console
-  console.error(error)
-  process.exit(1)
 }
+
+// eslint-disable-next-line unicorn/prefer-top-level-await
+void (async () => {
+  try {
+    await main()
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error(error)
+    process.exit(1)
+  }
+})()

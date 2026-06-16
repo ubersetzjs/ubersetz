@@ -164,9 +164,10 @@ The standard repository checks are:
 - `npm run lint`
 - `npm run type-check`
 - `npm test -- --run`
-- `npm run build` when packaging or output behavior is affected
+- `npm run build`
 
 When working on a single package, workspace-scoped commands are appropriate, but do not leave the repository in a state where the root checks fail.
+If a change could affect packaging, bundling, entrypoints, runtime dependencies, or generated output, run `npm run build` before finishing.
 
 Prefer validating the smallest relevant scope first, then run the root checks before finishing substantial work.
 
@@ -267,11 +268,11 @@ Before implementing a feature or refactor:
 
 1. identify which package owns the change
 2. read the relevant source and nearby tests
-3. determine whether the change affects runtime, extraction, migration, plugin behavior, or docs
+3. determine whether the change affects runtime, extraction, migration, plugin behavior, docs, or build output
 4. implement using existing conventions
 5. add or update tests
 6. run relevant package checks
-7. run root validation commands for substantial changes
+7. run root validation commands for substantial changes, including `npm run build`
 
 ---
 

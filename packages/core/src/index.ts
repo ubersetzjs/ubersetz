@@ -1,4 +1,3 @@
-import { EventEmitter } from 'events'
 import MessageFormat from '@messageformat/core'
 
 type PhraseMap = Record<string, string>
@@ -8,6 +7,7 @@ type TranslateInput = TranslationParameters | string
 type CompiledMessage = (parameters?: Record<string, ParameterValue>) => string
 
 type CompiledPhraseMap = Record<string, CompiledMessage>
+type LocaleChangeListener = (locale: string) => void
 
 function getTranslationArguments(
   parametersOrDefaultValue: TranslateInput,
@@ -29,12 +29,14 @@ function getTranslationArguments(
   }
 }
 
-class LocaleManager extends EventEmitter {
+class LocaleManager {
   private locale: string | undefined
 
   private phraseCache: Record<string, PhraseMap> = {}
 
   private compiledCache: Record<string, CompiledPhraseMap> = {}
+
+  private localeChangeListeners = new Set<LocaleChangeListener>()
 
   public getLocale() {
     return this.locale
@@ -52,7 +54,7 @@ class LocaleManager extends EventEmitter {
       this.loadLocaleSync(locale, fileOrMessages)
     }
     this.locale = locale
-    this.emit('setLocale', locale)
+    this.notifyLocaleChange(locale)
   }
 
   public setLocale(locale: string): Promise<void>
@@ -148,6 +150,19 @@ class LocaleManager extends EventEmitter {
     )
   }
 
+  public onLocaleChange(listener: LocaleChangeListener) {
+    this.localeChangeListeners.add(listener)
+    return () => {
+      this.localeChangeListeners.delete(listener)
+    }
+  }
+
+  private notifyLocaleChange(locale: string) {
+    for (const listener of this.localeChangeListeners) {
+      listener(locale)
+    }
+  }
+
   private compilePhraseMap(locale: string, phrases: PhraseMap): CompiledPhraseMap {
     return Object.fromEntries(Object.entries(phrases).map(([key, value]) => [
       key,
@@ -174,4 +189,4 @@ export const setLocaleSync = manager.setLocaleSync.bind(manager)
 export const loadLocaleSync = manager.loadLocaleSync.bind(manager)
 export const ubersetzWithLocale = manager.translateWithLocale.bind(manager)
 export const translateWithLocale = ubersetzWithLocale
-export const onLocaleChange = manager.on.bind(manager, 'setLocale')
+export const onLocaleChange = manager.onLocaleChange.bind(manager)
