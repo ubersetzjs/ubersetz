@@ -303,7 +303,18 @@ packages/
 - keep the runtime API stable unless a breaking change is intentional
 - keep MessageFormat support first-class
 - add tests when changing runtime, extraction, migration, or autotranslation behavior
+- package READMEs are intentionally minimal; keep detailed documentation in this root README
+
+## Contributing
+
+Contributions are welcome. Please open an issue or pull request.
+
+## Maintainer
+
+- Max Nowack ([maxnowack](https://github.com/maxnowack))
 
 ## License
 
 MIT
+
+Copyright (c) Max Nowack
