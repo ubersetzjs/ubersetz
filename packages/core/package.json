@@ -24,5 +24,7 @@
   "keywords": [],
   "author": "Max Nowack <max.nowack@gmail.com>",
   "license": "MIT",
-  "dependencies": {}
+  "dependencies": {
+    "@messageformat/core": "^3.4.0"
+  }
 }

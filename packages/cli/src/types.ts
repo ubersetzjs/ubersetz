@@ -11,6 +11,17 @@ export interface AutotranslationOptions {
   concurrency?: number,
 }
 
+export interface CliOptions {
+  '_': string[],
+  'autotranslation': boolean,
+  'delete': boolean,
+  'copy': boolean,
+  'write': boolean,
+  'fail': boolean,
+  'autotranslate-parallel': boolean,
+  'dry-run'?: boolean,
+}
+
 export type BaseAutotranslationFunction = (options: {
   text: string,
   sourceLanguage?: string,

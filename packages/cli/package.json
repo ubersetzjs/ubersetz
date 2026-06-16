@@ -19,6 +19,7 @@
   "author": "Max Nowack <max.nowack@gmail.com>",
   "license": "MIT",
   "dependencies": {
+    "@messageformat/parser": "^5.1.1",
     "global-dirs": "^2.1.0",
     "ignore-walk": "^3.0.3",
     "listr": "^0.14.3",

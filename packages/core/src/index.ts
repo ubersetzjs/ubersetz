@@ -1,13 +1,19 @@
 import { EventEmitter } from 'events'
+import MessageFormat from '@messageformat/core'
 
 type PhraseMap = Record<string, string>
-type TranslationParameters
-  = Record<string, string | number | boolean | null | undefined> | undefined | null
+type ParameterValue = string | number | boolean | Date | null | undefined
+type TranslationParameters = Record<string, ParameterValue> | undefined | null
+type CompiledMessage = (parameters?: Record<string, ParameterValue>) => string
+
+type CompiledPhraseMap = Record<string, CompiledMessage>
 
 class LocaleManager extends EventEmitter {
   private locale: string | undefined
 
   private phraseCache: Record<string, PhraseMap> = {}
+
+  private compiledCache: Record<string, CompiledPhraseMap> = {}
 
   public getLocale() {
     return this.locale
@@ -19,7 +25,9 @@ class LocaleManager extends EventEmitter {
     locale: string,
     fileOrMessages?: PhraseMap,
   ) {
-    if (!this.phraseCache[locale]) {
+    if (fileOrMessages) {
+      this.loadLocaleSync(locale, fileOrMessages)
+    } else if (!this.phraseCache[locale]) {
       this.loadLocaleSync(locale, fileOrMessages)
     }
     this.locale = locale
@@ -37,7 +45,6 @@ class LocaleManager extends EventEmitter {
     } else {
       this.setLocaleSync(locale)
     }
-    return
   }
 
   public loadLocaleSync(locale: string, fileOrMessages?: PhraseMap) {
@@ -45,11 +52,11 @@ class LocaleManager extends EventEmitter {
       throw new Error(`Cannot load locale '${locale}' without filename or phrases provided`)
     }
     this.phraseCache[locale] = fileOrMessages
+    this.compiledCache[locale] = this.compilePhraseMap(locale, fileOrMessages)
   }
 
   public async loadLocale(locale: string, fileOrMessages?: PhraseMap) {
     this.loadLocaleSync(locale, fileOrMessages)
-    return
   }
 
   public translate(
@@ -72,33 +79,38 @@ class LocaleManager extends EventEmitter {
     defaultValue: string,
   ) {
     const phrases = this.phraseCache[locale]
-    if (!phrases) {
+    const compiledPhrases = this.compiledCache[locale]
+    if (!phrases || !compiledPhrases) {
       throw new Error(`Locale '${locale}' not loaded`)
     }
 
-    let id = key
-    if (parameters && parameters.count != null && parameters.count !== 1) {
-      id = `${key}_plural`
-      if (!phrases[id]) {
-        id = key
-      }
+    const pluralKey = `${key}_plural`
+    const shouldUseV1Plural = parameters?.count != null
+      && parameters.count !== 1
+      && phrases[pluralKey] != null
+
+    const compiled = shouldUseV1Plural
+      ? compiledPhrases[pluralKey]
+      : compiledPhrases[key]
+
+    if (compiled) {
+      return compiled(parameters ?? undefined)
     }
 
-    let value = phrases[id]
-    if (!value) {
-      value = defaultValue || key
-    }
+    const fallbackMessage = defaultValue || key
+    return this.compileMessage(locale, fallbackMessage)(parameters ?? undefined)
+  }
 
-    if (parameters != null) {
-      Object.keys(parameters).forEach((parameter) => {
-        value = value.replaceAll(
-          new RegExp(`{${parameter}}`, 'g'),
-          parameters[parameter] == null ? '' : String(parameters[parameter]),
-        )
-      })
-    }
+  private compilePhraseMap(locale: string, phrases: PhraseMap): CompiledPhraseMap {
+    return Object.fromEntries(Object.entries(phrases).map(([key, value]) => [
+      key,
+      this.compileMessage(locale, value),
+    ]))
+  }
 
-    return value
+  private compileMessage(locale: string, value: string): CompiledMessage {
+    const messageFormat = new MessageFormat(locale)
+    return messageFormat.compile(value)
   }
 }
 

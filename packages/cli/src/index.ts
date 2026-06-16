@@ -11,19 +11,18 @@ import { hideBin } from 'yargs/helpers'
 import findFiles from './utils/findFiles'
 import config from './config'
 import extractPhrase from './extractPhrase'
-import type { Context, Phrase } from './types'
+import type { CliOptions, Context, Phrase } from './types'
 import canReadFile from './utils/canReadFile'
 import getPhrasesFromFile from './utils/getPhrasesFromFile'
 import getCountryFlag from './utils/getCountryFlag'
 import getAutotranslationPlugin from './getAutotranslationPlugin'
 import autotranslatePhrases from './autotranslatePhrases'
 import writeLocale from './utils/writeLocale'
-import extractPlural from './utils/extractPlural'
 import sortObject from './utils/sortObject'
 import { stringify } from './utils/json'
+import migrateV1Phrases from './utils/migrateV1Phrases'
 
-const argv = yargs(hideBin(process.argv)).parseSync()
-const options = {
+const defaultOptions: CliOptions = {
   '_': [process.cwd()],
   'autotranslation': true,
   'delete': true,
@@ -31,11 +30,50 @@ const options = {
   'write': true,
   'fail': false,
   'autotranslate-parallel': true,
-  ...argv,
 }
 
-const start = async () => {
-  const filePath = options._[0] as string
+function getMigratedPhrases(phrases: Record<string, string>) {
+  return migrateV1Phrases(phrases)
+}
+
+async function migrateLocaleFiles(dryRun: boolean) {
+  const files = [
+    config.getExtractionFilePath(),
+    ...config.getLocales().map(locale => locale.file),
+  ]
+  const uniqueFiles = [...new Set(files)]
+  let changedFiles = 0
+
+  for (const file of uniqueFiles) {
+    if (!await canReadFile(file)) {
+      continue
+    }
+
+    const phrases = await getPhrasesFromFile(file)
+    const migratedPhrases = getMigratedPhrases(phrases)
+    const [currentContent, migratedContent] = await Promise.all([
+      stringify(sortObject(phrases)),
+      stringify(sortObject(migratedPhrases)),
+    ])
+
+    if (currentContent === migratedContent) {
+      continue
+    }
+
+    changedFiles += 1
+    if (!dryRun) {
+      await writeLocale(file, migratedPhrases)
+    }
+  }
+
+  /* eslint-disable no-console */
+  console.log()
+  console.log(`🧭  ${dryRun ? 'dry run:' : 'migrated:'} ${changedFiles} file(s)`)
+  /* eslint-enable no-console */
+}
+
+async function runExtraction(options: CliOptions) {
+  const filePath = options._[0]
   const tasks = new Listr<Context>([{
     title: 'searching files',
     task: context => findFiles(filePath, {
@@ -48,6 +86,7 @@ const start = async () => {
       context.deletedPhrases = []
       context.newPhrases = []
       context.changedPhrases = []
+      context.locales = []
     }),
   }, {
     title: 'extracting phrases from files',
@@ -80,16 +119,6 @@ const start = async () => {
       }, {})
     },
   }, {
-    title: 'apply plurals',
-    skip: context => Object.keys(context.extractedPhrases).length <= 0,
-    task: (context) => {
-      context.extractedPhrases = Object.keys(context.extractedPhrases)
-        .reduce<Record<string, string>>((memo, key) => ({
-          ...memo,
-          ...extractPlural(key, context.extractedPhrases[key]),
-        }), {})
-    },
-  }, {
     title: 'write extractions file',
     skip: () => !options.write,
     task: async (context) => {
@@ -110,14 +139,15 @@ const start = async () => {
     skip: () => !options.delete || config.getLocales().length <= 0,
     task: async (context) => {
       await Promise.all(config.getLocales().map(async (locale) => {
-        const phrases = await getPhrasesFromFile(locale.file)
-        const newPhrases = Object.keys(context.extractedPhrases).reduce((memo, key) => {
-          if (!phrases[key]) return memo
-          return {
-            ...memo,
-            [key]: phrases[key],
-          }
-        }, {})
+        const phrases = getMigratedPhrases(await getPhrasesFromFile(locale.file))
+        const newPhrases = Object.keys(context.extractedPhrases)
+          .reduce<Record<string, string>>((memo, key) => {
+            if (!phrases[key]) return memo
+            return {
+              ...memo,
+              [key]: phrases[key],
+            }
+          }, {})
         const [currentString, newString] = await Promise.all([
           stringify(sortObject(phrases)),
           stringify(sortObject(newPhrases)),
@@ -133,9 +163,18 @@ const start = async () => {
     task: async (context) => {
       const baseLocale = config.getLocales().find(i => i.base)
       if (!baseLocale) return
-      const phrases = await getPhrasesFromFile(baseLocale.file)
+      const currentPhrases = await getPhrasesFromFile(baseLocale.file)
+      const migratedPhrases = getMigratedPhrases(currentPhrases)
       const phraseEntries = Object.keys(context.extractedPhrases)
-        .map(key => [key, phrases[key] || context.extractedPhrases[key]])
+        .map((key) => {
+          const hasLegacyPlural = currentPhrases[`${key}_plural`] != null
+          return [
+            key,
+            hasLegacyPlural
+              ? context.extractedPhrases[key]
+              : migratedPhrases[key] || context.extractedPhrases[key],
+          ]
+        })
       const sortedPhrases = Object.fromEntries(phraseEntries) as Record<string, string>
       await writeLocale(baseLocale.file, sortedPhrases)
     },
@@ -144,7 +183,7 @@ const start = async () => {
     skip: () => config.getLocales().length <= 0,
     task: async (context) => {
       context.locales = await pMap(config.getLocales(), async (locale) => {
-        const phrases = await getPhrasesFromFile(locale.file)
+        const phrases = getMigratedPhrases(await getPhrasesFromFile(locale.file))
         const translated: string[] = []
         const untranslated: string[] = []
         Object.keys(context.extractedPhrases).forEach((key) => {
@@ -188,7 +227,6 @@ const start = async () => {
           if (autotranslate.kill) {
             return autotranslate.kill()
           }
-          return
         },
       }])
     },
@@ -221,8 +259,25 @@ const start = async () => {
   }
 }
 
+const rawArguments = hideBin(process.argv)
+const [commandName] = rawArguments
+
 try {
-  await start()
+  if (commandName === 'migrate') {
+    const argv = yargs(rawArguments.slice(1))
+      .option('dry-run', { type: 'boolean', default: false })
+      .parseSync()
+    await migrateLocaleFiles(Boolean(argv['dry-run']))
+    process.exit(0)
+  }
+
+  const argv = yargs(rawArguments).parseSync()
+  const options: CliOptions = {
+    ...defaultOptions,
+    ...argv,
+    _: [typeof argv._[0] === 'string' ? argv._[0] : process.cwd()],
+  }
+  await runExtraction(options)
 } catch (error) {
   // eslint-disable-next-line no-console
   console.error(error)
