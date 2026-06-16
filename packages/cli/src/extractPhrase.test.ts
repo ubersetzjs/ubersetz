@@ -29,4 +29,41 @@ describe('extractPhrase', () => {
       defaultValue: '{gender, select, male {He bought {count, plural, one {# item} other {# items}}} female {She bought {count, plural, one {# item} other {# items}}} other {They bought {count, plural, one {# item} other {# items}}}}',
     }])
   })
+
+  it('extracts multiline u calls with template literals', () => {
+    const content = `u(
+  'welcome',
+  {
+    name,
+    body: dedent\`
+      Hello
+      there
+    \`,
+  },
+  \`
+    Hello {name}!
+    Welcome back.
+  \`,
+)`
+
+    expect(extractPhrase(content, config.getPatternRegExp('ts'))).toEqual([{
+      key: 'welcome',
+      defaultValue: '\n    Hello {name}!\n    Welcome back.\n  ',
+    }])
+  })
+
+  it('extracts multiline u calls with tagged template literals and omitted params', () => {
+    const content = `u(
+  'description',
+  dedent\`
+    First line
+    Second line
+  \`,
+)`
+
+    expect(extractPhrase(content, config.getPatternRegExp('ts'))).toEqual([{
+      key: 'description',
+      defaultValue: '\n    First line\n    Second line\n  ',
+    }])
+  })
 })

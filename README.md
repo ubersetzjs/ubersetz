@@ -214,6 +214,7 @@ Default behavior:
 
 - scans configured file extensions
 - extracts `u(key, defaultValue)` and `u(key, params, defaultValue)` calls
+- supports multiline calls, template literals, and tagged template literals during extraction
 - writes `extractionFile`
 - copies new phrases into the base locale
 - removes deleted phrases from configured locale files

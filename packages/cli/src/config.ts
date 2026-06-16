@@ -60,10 +60,10 @@ const defaultConfig: ConfigType = {
     file: 'locales/en.locales.json',
   }],
   patterns: [{
-    pattern: String.raw`{{fn}}\s*\(\s*(['"])(.*?)\1\s*,\s*[\s\S]*?\s*,?\s*(['"])([\s\S]*?)\3,?[\s\S]*?\)`,
+    pattern: String.raw`{{fn}}\s*\(\s*(['"])(.*?)\1\s*,`,
     extensions: ['js', 'jsx', 'ts', 'tsx'],
   }, {
-    pattern: String.raw`{{fn}}\s*\(\s*(['"])(.*?)\1\s*,\s*[\s\S]*?\s*,\s*(['"])([\s\S]*?)\3,?[\s\S]*?\)`,
+    pattern: String.raw`{{fn}}\s*\(\s*(['"])(.*?)\1\s*,`,
     extensions: ['coffee'],
   }],
 }
