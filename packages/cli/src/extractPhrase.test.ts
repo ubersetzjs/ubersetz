@@ -12,6 +12,15 @@ describe('extractPhrase', () => {
     }])
   })
 
+  it('extracts phrases when params are omitted', () => {
+    const content = "u('greeting', 'Hello world!')"
+
+    expect(extractPhrase(content, config.getPatternRegExp('ts'))).toEqual([{
+      key: 'greeting',
+      defaultValue: 'Hello world!',
+    }])
+  })
+
   it('extracts nested messageformat strings', () => {
     const content = "u('summary', { count, gender }, '{gender, select, male {He bought {count, plural, one {# item} other {# items}}} female {She bought {count, plural, one {# item} other {# items}}} other {They bought {count, plural, one {# item} other {# items}}}}')"
 

@@ -14,6 +14,14 @@ describe('ubersetz core v2', () => {
     expect(translate('greeting', { name: 'Max' }, 'fallback')).toBe('Hello Max!')
   })
 
+  it('supports calling translate without params', () => {
+    setLocaleSync('en', {
+      greeting: 'Hello world!',
+    })
+
+    expect(translate('greeting', 'fallback')).toBe('Hello world!')
+  })
+
   it('supports native messageformat plurals and selects', () => {
     setLocaleSync('en', {
       summary: '{gender, select, male {He} female {She} other {They}} bought {count, plural, one {# item} other {# items}}',
@@ -42,5 +50,11 @@ describe('ubersetz core v2', () => {
       { count: 2 },
       '{count, plural, one {# file} other {# files}}',
     )).toBe('2 files')
+  })
+
+  it('supports translateWithLocale without params', () => {
+    setLocaleSync('en', {})
+
+    expect(translateWithLocale('en', 'missing', 'Fallback only')).toBe('Fallback only')
   })
 })

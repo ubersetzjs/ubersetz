@@ -72,7 +72,8 @@ Create `.ubersetzrc` in your app:
 ```ts
 import u from 'ubersetz'
 
-u('greeting', { name: 'Max' }, 'Hello {name}!')
+u('greeting', 'Hello world!')
+u('welcome', { name: 'Max' }, 'Hello {name}!')
 u('item_count', { count: 2 }, '{count, plural, one {# item} other {# items}}')
 ```
 
@@ -106,12 +107,14 @@ import u from 'ubersetz'
 Signature:
 
 ```ts
+u(key, defaultValue)
 u(key, params, defaultValue)
 ```
 
-Example:
+Examples:
 
 ```ts
+u('greeting', 'Hello world!')
 u('welcome', { name: 'Ada' }, 'Welcome {name}!')
 ```
 
@@ -210,7 +213,7 @@ npx @ubersetz/cli .
 Default behavior:
 
 - scans configured file extensions
-- extracts `u(key, params, defaultValue)` calls
+- extracts `u(key, defaultValue)` and `u(key, params, defaultValue)` calls
 - writes `extractionFile`
 - copies new phrases into the base locale
 - removes deleted phrases from configured locale files

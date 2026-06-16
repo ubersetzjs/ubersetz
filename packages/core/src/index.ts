@@ -4,9 +4,30 @@ import MessageFormat from '@messageformat/core'
 type PhraseMap = Record<string, string>
 type ParameterValue = string | number | boolean | Date | null | undefined
 type TranslationParameters = Record<string, ParameterValue> | undefined | null
+type TranslateInput = TranslationParameters | string
 type CompiledMessage = (parameters?: Record<string, ParameterValue>) => string
 
 type CompiledPhraseMap = Record<string, CompiledMessage>
+
+function getTranslationArguments(
+  parametersOrDefaultValue: TranslateInput,
+  defaultValue?: string,
+): {
+  parameters: TranslationParameters,
+  defaultValue: string,
+} {
+  if (typeof parametersOrDefaultValue === 'string') {
+    return {
+      parameters: undefined,
+      defaultValue: parametersOrDefaultValue,
+    }
+  }
+
+  return {
+    parameters: parametersOrDefaultValue,
+    defaultValue: defaultValue || '',
+  }
+}
 
 class LocaleManager extends EventEmitter {
   private locale: string | undefined
@@ -59,25 +80,49 @@ class LocaleManager extends EventEmitter {
     this.loadLocaleSync(locale, fileOrMessages)
   }
 
+  public translate(key: string, defaultValue: string): string
+
   public translate(
     key: string,
     parameters: TranslationParameters,
     defaultValue: string,
+  ): string
+
+  public translate(
+    key: string,
+    parametersOrDefaultValue: TranslateInput,
+    defaultValue?: string,
   ) {
     const locale = this.getLocale()
     if (!locale) {
       throw new Error('Locale not loaded')
     }
 
-    return this.translateWithLocale(locale, key, parameters, defaultValue)
+    const translationArguments = getTranslationArguments(parametersOrDefaultValue, defaultValue)
+    return this.translateWithLocale(
+      locale,
+      key,
+      translationArguments.parameters,
+      translationArguments.defaultValue,
+    )
   }
+
+  public translateWithLocale(locale: string, key: string, defaultValue: string): string
 
   public translateWithLocale(
     locale: string,
     key: string,
     parameters: TranslationParameters,
     defaultValue: string,
+  ): string
+
+  public translateWithLocale(
+    locale: string,
+    key: string,
+    parametersOrDefaultValue: TranslateInput,
+    defaultValue?: string,
   ) {
+    const translationArguments = getTranslationArguments(parametersOrDefaultValue, defaultValue)
     const phrases = this.phraseCache[locale]
     const compiledPhrases = this.compiledCache[locale]
     if (!phrases || !compiledPhrases) {
@@ -85,8 +130,8 @@ class LocaleManager extends EventEmitter {
     }
 
     const pluralKey = `${key}_plural`
-    const shouldUseV1Plural = parameters?.count != null
-      && parameters.count !== 1
+    const shouldUseV1Plural = translationArguments.parameters?.count != null
+      && translationArguments.parameters.count !== 1
       && phrases[pluralKey] != null
 
     const compiled = shouldUseV1Plural
@@ -94,11 +139,13 @@ class LocaleManager extends EventEmitter {
       : compiledPhrases[key]
 
     if (compiled) {
-      return compiled(parameters ?? undefined)
+      return compiled(translationArguments.parameters ?? undefined)
     }
 
-    const fallbackMessage = defaultValue || key
-    return this.compileMessage(locale, fallbackMessage)(parameters ?? undefined)
+    const fallbackMessage = translationArguments.defaultValue || key
+    return this.compileMessage(locale, fallbackMessage)(
+      translationArguments.parameters ?? undefined,
+    )
   }
 
   private compilePhraseMap(locale: string, phrases: PhraseMap): CompiledPhraseMap {
