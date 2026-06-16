@@ -1,4 +1,4 @@
-import MessageFormat from '@messageformat/core'
+import MessageFormat from '@messageformat/core/lib/messageformat.js'
 
 type PhraseMap = Record<string, string>
 type ParameterValue = string | number | boolean | Date | null | undefined
