@@ -279,13 +279,47 @@ async function main() {
   await runExtraction(options)
 }
 
+function formatError(error: unknown): string {
+  const reset = '\u001B[0m'
+  const red = '\u001B[31m'
+  const bold = '\u001B[1m'
+  const yellow = '\u001B[33m'
+
+  let message: string
+  if (error instanceof Error) {
+    message = error.message
+  } else if (typeof error === 'string') {
+    message = error
+  } else {
+    message = JSON.stringify(error)
+  }
+
+  return [
+    '',
+    `${red}${bold}\u2716  ubersetz:${reset} ${yellow}${message}${reset}`,
+    '',
+  ].join('\n')
+}
+
+function handleFatalError(error: unknown): never {
+  // eslint-disable-next-line no-console
+  console.error(formatError(error))
+  process.exit(1)
+}
+
+process.on('unhandledRejection', (reason) => {
+  handleFatalError(reason)
+})
+
+process.on('uncaughtException', (error) => {
+  handleFatalError(error)
+})
+
 // eslint-disable-next-line unicorn/prefer-top-level-await
 void (async () => {
   try {
     await main()
   } catch (error) {
-    // eslint-disable-next-line no-console
-    console.error(error)
-    process.exit(1)
+    handleFatalError(error)
   }
 })()
