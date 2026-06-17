@@ -29,6 +29,7 @@ const defaultOptions: CliOptions = {
   'write': true,
   'fail': false,
   'autotranslate-parallel': true,
+  'debug': false,
 }
 
 function getMigratedPhrases(phrases: Record<string, string>) {
@@ -218,6 +219,7 @@ async function runExtraction(options: CliOptions) {
             autotranslate,
             baseLocale: config.getBaseLocale(),
             concurrency: autotranslationOptions.concurrency || 10,
+            throwOnError: options['debug'],
           }),
         })), { concurrent: options['autotranslate-parallel'] }),
       }, {
@@ -270,7 +272,9 @@ async function main() {
     process.exit(0)
   }
 
-  const argv = yargs(rawArguments).parseSync()
+  const argv = yargs(rawArguments)
+    .option('debug', { type: 'boolean', default: false, description: 'Crash immediately on any exception and display the full stack trace' })
+    .parseSync()
   const options: CliOptions = {
     ...defaultOptions,
     ...argv,

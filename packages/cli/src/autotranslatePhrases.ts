@@ -16,12 +16,14 @@ const autotranslatePhrases = ({
   autotranslate,
   baseLocale,
   concurrency,
+  throwOnError = false,
 }: {
   locale: Context['locales'][0],
   phrases: Record<string, string>,
   autotranslate: AutotranslationFunction,
   baseLocale: string,
   concurrency: number,
+  throwOnError?: boolean,
 }) => new Observable((observer) => {
   const { untranslated, informal } = locale
   let count = 0
@@ -53,15 +55,19 @@ const autotranslatePhrases = ({
             return result.text
           })
         } catch (error) {
+          if (throwOnError) {
+            // eslint-disable-next-line no-console
+            console.error(error)
+            throw error
+          }
           attempt += 1
+          const errorMessage = error instanceof Error ? error.message : String(error)
           if (attempt >= MAX_RETRIES) {
-            const reason = error instanceof Error ? error.message : String(error)
-            update(`⚠️  skipped '${key}' after ${MAX_RETRIES} attempts: ${reason}`)
+            update(`⚠️  skipped '${key}' after ${MAX_RETRIES} attempts: ${errorMessage}`)
             return
           }
           const delay = Math.min(BASE_DELAY_MS * 2 ** (attempt - 1), MAX_DELAY_MS)
-          const reason = error instanceof Error ? error.message : String(error)
-          update(`⚠️  retrying '${key}' (attempt ${attempt}/${MAX_RETRIES}, waiting ${delay / 1000}s — ${reason})`)
+          update(`⚠️  retrying '${key}' (attempt ${attempt}/${MAX_RETRIES}, waiting ${delay / 1000}s — ${errorMessage})`)
           await sleep(delay)
         }
       }

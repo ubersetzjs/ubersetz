@@ -19,6 +19,7 @@ export interface CliOptions {
   'write': boolean,
   'fail': boolean,
   'autotranslate-parallel': boolean,
+  'debug': boolean,
   'dry-run'?: boolean,
 }
 
