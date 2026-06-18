@@ -4,6 +4,7 @@ export interface Locale {
   file: string,
   autotranslate?: boolean,
   informal?: boolean,
+  invalidateOnChange?: boolean,
 }
 
 export interface AutotranslationOptions {
@@ -41,6 +42,7 @@ export interface Config {
   baseLocale: string,
   locales: Locale[],
   autotranslate?: AutotranslationOptions | string,
+  invalidateOnChange?: boolean,
   patterns: {
     pattern: string,
     extensions: string[],

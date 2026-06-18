@@ -36,6 +36,10 @@ class Config {
     return this.config.baseLocale
   }
 
+  public getInvalidateOnChange(): boolean | undefined {
+    return this.config.invalidateOnChange
+  }
+
   public getAutotranslationOptions(): AutotranslationOptions {
     const plugin = !this.config.autotranslate || typeof this.config.autotranslate === 'string'
       ? this.config.autotranslate

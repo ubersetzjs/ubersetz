@@ -20,6 +20,7 @@ import writeLocale from './utils/writeLocale'
 import sortObject from './utils/sortObject'
 import { stringify } from './utils/json'
 import migrateV1Phrases from './utils/migrateV1Phrases'
+import { promptYesNo } from './utils/promptUser'
 
 const defaultOptions: CliOptions = {
   '_': [process.cwd()],
@@ -72,8 +73,61 @@ async function migrateLocaleFiles(dryRun: boolean) {
   /* eslint-enable no-console */
 }
 
+async function invalidateChangedPhrases(
+  changedKeys: string[],
+  previousPhrases: Record<string, string>,
+  extractedPhrases: Record<string, string>,
+  write: boolean,
+): Promise<number> {
+  if (!write || changedKeys.length === 0) return 0
+
+  const globalInvalidate = config.getInvalidateOnChange()
+  const locales = config.getLocales()
+
+  // Only phrases that existed before and now have a different default value
+  const trulyChanged = changedKeys.filter(key => previousPhrases[key] != null)
+  if (trulyChanged.length === 0) return 0
+
+  let count = 0
+  for (const key of trulyChanged) {
+    const autoLocales = locales.filter(l => (l.invalidateOnChange ?? globalInvalidate) === true)
+    const askLocales = locales.filter(l => (l.invalidateOnChange ?? globalInvalidate) == null)
+
+    let invalidateAskLocales = false
+    if (askLocales.length > 0 && process.stdout.isTTY) {
+      /* eslint-disable no-console */
+      console.log()
+      console.log(`✏️   '${key}' default changed:`)
+      console.log(`     Old: "${previousPhrases[key]}"`)
+      console.log(`     New: "${extractedPhrases[key]}"`)
+      /* eslint-enable no-console */
+      invalidateAskLocales = await promptYesNo('     Invalidate translations in all languages? (y/n) ')
+    }
+
+    const localesToInvalidate = [
+      ...autoLocales,
+      ...(invalidateAskLocales ? askLocales : []),
+    ]
+
+    await Promise.all(localesToInvalidate.map(async (locale) => {
+      const phrases = getMigratedPhrases(await getPhrasesFromFile(locale.file))
+      if (phrases[key] == null) return
+      const updated = { ...phrases }
+      delete updated[key]
+      await writeLocale(locale.file, updated)
+      count++
+    }))
+  }
+  return count
+}
+
 async function runExtraction(options: CliOptions) {
   const filePath = options._[0]
+  const extractsFile = path.join(filePath, config.getExtractionFilePath())
+  const previousPhrases: Record<string, string> = (await canReadFile(extractsFile))
+    ? await getPhrasesFromFile(extractsFile)
+    : {}
+
   const tasks = new Listr<Context>([{
     title: 'searching files',
     task: context => findFiles(filePath, {
@@ -235,12 +289,20 @@ async function runExtraction(options: CliOptions) {
   const result = await tasks.run()
   const { newPhrases, changedPhrases } = result
 
+  const invalidatedCount = await invalidateChangedPhrases(
+    changedPhrases,
+    previousPhrases,
+    result.extractedPhrases,
+    options.write,
+  )
+
   /* eslint-disable no-console */
   let shouldFail = result.deletedPhrases.length > 0
   console.log()
   console.log(`🆕  ${newPhrases.length} new phrases`)
   console.log(`✏️   ${changedPhrases.length} changed phrases`)
   console.log(`❌  ${result.deletedPhrases.length} deleted phrases`)
+  if (invalidatedCount > 0) console.log(`🔄  ${invalidatedCount} invalidated phrases`)
   result.locales.forEach((locale) => {
     console.log()
     console.log(`${getCountryFlag(locale.code)}   ${locale.name}`)
