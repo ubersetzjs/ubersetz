@@ -61,6 +61,7 @@ export interface Context {
   deletedPhrases: string[],
   newPhrases: string[],
   changedPhrases: string[],
+  invalidatedCount: number,
   locales: (Locale & {
     phrases: Record<string, string>,
     translated: string[],

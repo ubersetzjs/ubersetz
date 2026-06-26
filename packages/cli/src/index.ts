@@ -95,13 +95,19 @@ async function invalidateChangedPhrases(
 
     let invalidateAskLocales = false
     if (askLocales.length > 0 && process.stdout.isTTY) {
-      /* eslint-disable no-console */
-      console.log()
-      console.log(`✏️   '${key}' default changed:`)
-      console.log(`     Old: "${previousPhrases[key]}"`)
-      console.log(`     New: "${extractedPhrases[key]}"`)
-      /* eslint-enable no-console */
-      invalidateAskLocales = await promptYesNo('     Invalidate translations in all languages? (y/n) ')
+      const askPhrases = await Promise.all(
+        askLocales.map(l => getPhrasesFromFile(l.file).then(getMigratedPhrases)),
+      )
+      const hasTranslation = askPhrases.some(phrases => phrases[key] != null)
+      if (hasTranslation) {
+        /* eslint-disable no-console */
+        console.log()
+        console.log(`✏️   '${key}' default changed:`)
+        console.log(`     Old: "${previousPhrases[key]}"`)
+        console.log(`     New: "${extractedPhrases[key]}"`)
+        /* eslint-enable no-console */
+        invalidateAskLocales = await promptYesNo('     Invalidate translations in all languages? (y/n) ')
+      }
     }
 
     const localesToInvalidate = [
@@ -140,6 +146,7 @@ async function runExtraction(options: CliOptions) {
       context.deletedPhrases = []
       context.newPhrases = []
       context.changedPhrases = []
+      context.invalidatedCount = 0
       context.locales = []
     }),
   }, {
@@ -176,7 +183,6 @@ async function runExtraction(options: CliOptions) {
     title: 'write extractions file',
     skip: () => !options.write,
     task: async (context) => {
-      const extractsFile = path.join(filePath, config.getExtractionFilePath())
       if (await canReadFile(extractsFile)) {
         const currentPhrases = await getPhrasesFromFile(extractsFile)
         context.deletedPhrases = Object.keys(currentPhrases).filter(key =>
@@ -187,6 +193,17 @@ async function runExtraction(options: CliOptions) {
           currentPhrases[key] !== context.extractedPhrases[key])
       }
       await writeLocale(extractsFile, context.extractedPhrases)
+    },
+  }, {
+    title: 'invalidating changed phrases',
+    skip: context => !options.write || context.changedPhrases.length === 0,
+    task: async (context) => {
+      context.invalidatedCount = await invalidateChangedPhrases(
+        context.changedPhrases,
+        previousPhrases,
+        context.extractedPhrases,
+        options.write,
+      )
     },
   }, {
     title: 'deleting old phrases',
@@ -287,14 +304,7 @@ async function runExtraction(options: CliOptions) {
     },
   }])
   const result = await tasks.run()
-  const { newPhrases, changedPhrases } = result
-
-  const invalidatedCount = await invalidateChangedPhrases(
-    changedPhrases,
-    previousPhrases,
-    result.extractedPhrases,
-    options.write,
-  )
+  const { newPhrases, changedPhrases, invalidatedCount } = result
 
   /* eslint-disable no-console */
   let shouldFail = result.deletedPhrases.length > 0
