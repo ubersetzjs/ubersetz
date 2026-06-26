@@ -8,5 +8,5 @@ const queues: Record<string, PQueue> = {}
 export default function writeLocale(file: string, localePhrases: Record<string, string>) {
   queues[file] = queues[file] || new PQueue({ concurrency: 1 })
   return queues[file].add(async () =>
-    fs.writeFile(file, await stringify(sortObject(localePhrases), 2)))
+    fs.writeFile(file, await stringify(sortObject(localePhrases), 2) + '\n'))
 }
