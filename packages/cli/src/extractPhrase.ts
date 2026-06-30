@@ -122,7 +122,18 @@ function getTemplateLiteralValue(expression: string) {
   }
 
   const endIndex = scanTemplateLiteral(expression, startIndex) - 1
-  return expression.slice(startIndex + 1, endIndex)
+  const value = expression.slice(startIndex + 1, endIndex)
+
+  if (value.includes('${')) {
+    throw new Error(
+      `template literal with variable interpolation is not allowed as a phrase value: ${expression.trim()}\n`
+      + 'Variables must be passed directly to the translation function — not via template literals.\n'
+      + '  ✗  u(\'key\', `Hello ${name}`)\n'
+      + '  ✓  u(\'key\', { name }, \'Hello {name}\')',
+    )
+  }
+
+  return value
 }
 
 function getStringValue(expression: string) {

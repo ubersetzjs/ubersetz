@@ -52,6 +52,14 @@ describe('extractPhrase', () => {
     }])
   })
 
+  it('throws when a template literal with variable interpolation is used as phrase value', () => {
+    const content = "u('greeting', `Hello ${name}`)"
+
+    expect(() => extractPhrase(content, config.getPatternRegExp('ts'))).toThrow(
+      'template literal with variable interpolation is not allowed as a phrase value',
+    )
+  })
+
   it('extracts multiline u calls with tagged template literals and omitted params', () => {
     const content = `u(
   'description',
