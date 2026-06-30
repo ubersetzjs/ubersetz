@@ -20,7 +20,7 @@ import writeLocale from './utils/writeLocale'
 import sortObject from './utils/sortObject'
 import { stringify } from './utils/json'
 import migrateV1Phrases from './utils/migrateV1Phrases'
-import { promptYesNo } from './utils/promptUser'
+import { promptYesNoAll } from './utils/promptUser'
 
 const defaultOptions: CliOptions = {
   '_': [process.cwd()],
@@ -89,12 +89,13 @@ async function invalidateChangedPhrases(
   if (trulyChanged.length === 0) return 0
 
   let count = 0
+  let invalidateAll = false
   for (const key of trulyChanged) {
     const autoLocales = locales.filter(l => (l.invalidateOnChange ?? globalInvalidate) === true)
     const askLocales = locales.filter(l => (l.invalidateOnChange ?? globalInvalidate) == null)
 
-    let invalidateAskLocales = false
-    if (askLocales.length > 0 && process.stdout.isTTY) {
+    let invalidateAskLocales = invalidateAll
+    if (!invalidateAll && askLocales.length > 0 && process.stdout.isTTY) {
       const askPhrases = await Promise.all(
         askLocales.map(l => getPhrasesFromFile(l.file).then(getMigratedPhrases)),
       )
@@ -106,7 +107,13 @@ async function invalidateChangedPhrases(
         console.log(`     Old: "${previousPhrases[key]}"`)
         console.log(`     New: "${extractedPhrases[key]}"`)
         /* eslint-enable no-console */
-        invalidateAskLocales = await promptYesNo('     Invalidate translations in all languages? (y/n) ')
+        const answer = await promptYesNoAll('     Invalidate translations in all languages? (y/n/a) ')
+        if (answer === 'all') {
+          invalidateAll = true
+          invalidateAskLocales = true
+        } else {
+          invalidateAskLocales = answer === 'yes'
+        }
       }
     }
 
