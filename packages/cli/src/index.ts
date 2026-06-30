@@ -134,50 +134,60 @@ async function runExtraction(options: CliOptions) {
     ? await getPhrasesFromFile(extractsFile)
     : {}
 
-  const tasks = new Listr<Context>([{
+  const globalContext: Context = {
+    files: [],
+    phrases: [],
+    extractedPhrases: {},
+    deletedPhrases: [],
+    newPhrases: [],
+    changedPhrases: [],
+    invalidatedCount: 0,
+    locales: [],
+  }
+
+  // Phase 1: extract phrases and write extractions file
+  await new Listr<Context>([{
     title: 'searching files',
     task: context => findFiles(filePath, {
       ignoreFiles: ['.gitignore', '.ubersetzignore'],
       pattern: new RegExp(config.getPatternExtensions().map(fileExtension => String.raw`\.${fileExtension}$`).join('|')),
     }).then((files) => {
       context.files = files
-      context.phrases = []
-      context.extractedPhrases = {}
-      context.deletedPhrases = []
-      context.newPhrases = []
-      context.changedPhrases = []
-      context.invalidatedCount = 0
-      context.locales = []
     }),
   }, {
     title: 'extracting phrases from files',
-    task: context => new Listr(config.getPatternExtensions().map<ListrTask<Context>>(extension => ({
-      title: extension,
-      task: async () => {
-        const phrases: Phrase[] = []
-        await pMap(context.files, async (name) => {
-          if (!new RegExp(String.raw`\.${extension}$`).test(name)) return
-          const fileContent = await fs.readFile(path.join(filePath, name), 'utf8')
-          extractPhrase(fileContent, config.getPatternRegExp(extension))
-            .forEach(phrase => phrases.push(phrase))
-        })
-        context.phrases = sortBy([...context.phrases || [], ...phrases], p => p.key.toLowerCase())
-      },
-    })), { concurrent: true }),
+    task: context => new Listr(config.getPatternExtensions()
+      .map<ListrTask<Context>>(extension => ({
+        title: extension,
+        task: async () => {
+          const phrases: Phrase[] = []
+          await pMap(context.files, async (name) => {
+            if (!new RegExp(String.raw`\.${extension}$`).test(name)) return
+            const fileContent = await fs.readFile(path.join(filePath, name), 'utf8')
+            extractPhrase(fileContent, config.getPatternRegExp(extension))
+              .forEach(phrase => phrases.push(phrase))
+          })
+          context.phrases = sortBy([
+            ...context.phrases || [],
+            ...phrases,
+          ], p => p.key.toLowerCase())
+        },
+      })), { concurrent: true }),
   }, {
     title: 'check phrases',
     skip: context => context.phrases.length <= 0,
     task: (context) => {
-      context.extractedPhrases = context.phrases.reduce<Record<string, string>>((memo, phrase) => {
-        if (memo[phrase.key] != null && memo[phrase.key] !== phrase.defaultValue) {
-          throw new Error(`duplicate key '${phrase.key}', current: '${memo[phrase.key]}', new: '${phrase.defaultValue}'`)
-        }
+      context.extractedPhrases = context.phrases
+        .reduce<Record<string, string>>((memo, phrase) => {
+          if (memo[phrase.key] != null && memo[phrase.key] !== phrase.defaultValue) {
+            throw new Error(`duplicate key '${phrase.key}', current: '${memo[phrase.key]}', new: '${phrase.defaultValue}'`)
+          }
 
-        return {
-          ...memo,
-          [phrase.key]: phrase.defaultValue,
-        }
-      }, {})
+          return {
+            ...memo,
+            [phrase.key]: phrase.defaultValue,
+          }
+        }, {})
     },
   }, {
     title: 'write extractions file',
@@ -190,22 +200,25 @@ async function runExtraction(options: CliOptions) {
         context.newPhrases = Object.keys(context.extractedPhrases).filter(key =>
           currentPhrases[key] == null)
         context.changedPhrases = Object.keys(context.extractedPhrases).filter(key =>
-          currentPhrases[key] !== context.extractedPhrases[key])
+          currentPhrases[key] != null && currentPhrases[key] !== context.extractedPhrases[key])
       }
       await writeLocale(extractsFile, context.extractedPhrases)
     },
-  }, {
-    title: 'invalidating changed phrases',
-    skip: context => !options.write || context.changedPhrases.length === 0,
-    task: async (context) => {
-      context.invalidatedCount = await invalidateChangedPhrases(
-        context.changedPhrases,
-        previousPhrases,
-        context.extractedPhrases,
-        options.write,
-      )
-    },
-  }, {
+  }]).run(globalContext)
+
+  // Invalidate changed phrases outside of any active Listr instance so that
+  // the interactive prompt is not overwritten by the spinner on each render tick.
+  if (options.write && globalContext.changedPhrases.length > 0) {
+    globalContext.invalidatedCount = await invalidateChangedPhrases(
+      globalContext.changedPhrases,
+      previousPhrases,
+      globalContext.extractedPhrases,
+      options.write,
+    )
+  }
+
+  // Phase 2: delete old phrases, copy to base locale, check, autotranslate
+  await new Listr<Context>([{
     title: 'deleting old phrases',
     skip: () => !options.delete || config.getLocales().length <= 0,
     task: async (context) => {
@@ -302,9 +315,10 @@ async function runExtraction(options: CliOptions) {
         },
       }])
     },
-  }])
-  const result = await tasks.run()
-  const { newPhrases, changedPhrases, invalidatedCount } = result
+  }]).run(globalContext)
+
+  const { newPhrases, changedPhrases, invalidatedCount } = globalContext
+  const result = globalContext
 
   /* eslint-disable no-console */
   let shouldFail = result.deletedPhrases.length > 0
