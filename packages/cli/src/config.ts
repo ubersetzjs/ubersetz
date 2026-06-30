@@ -1,0 +1,75 @@
+import loadRc from 'rc'
+import type { Config as ConfigType, AutotranslationOptions } from './types'
+
+class Config {
+  private config: ConfigType
+
+  constructor(config: ConfigType) {
+    this.config = config
+  }
+
+  public getPatternExtensions() {
+    return this.config.patterns.reduce<string[]>((memo, pattern) => [
+      ...memo,
+      ...pattern.extensions,
+    ], [])
+  }
+
+  public getPatternRegExp(extension: string) {
+    const pattern = this.config.patterns.find(p => p.extensions.includes(extension))
+    if (!pattern) throw new Error(`Cannot find pattern for extension ${extension}`)
+    return new RegExp(pattern.pattern.replaceAll('{{fn}}', this.config.functionName), 'g')
+  }
+
+  public getLocales() {
+    return this.config.locales.map(l => ({
+      ...l,
+      base: l.code === this.config.baseLocale,
+    }))
+  }
+
+  public getExtractionFilePath() {
+    return this.config.extractionFile
+  }
+
+  public getBaseLocale() {
+    return this.config.baseLocale
+  }
+
+  public getInvalidateOnChange(): boolean | undefined {
+    return this.config.invalidateOnChange
+  }
+
+  public getAutotranslationOptions(): AutotranslationOptions {
+    const plugin = !this.config.autotranslate || typeof this.config.autotranslate === 'string'
+      ? this.config.autotranslate
+      : this.config.autotranslate.plugin
+    const options = !this.config.autotranslate || typeof this.config.autotranslate === 'string'
+      ? {}
+      : this.config.autotranslate
+    return {
+      ...options,
+      plugin,
+    }
+  }
+}
+
+const defaultConfig: ConfigType = {
+  functionName: 'u',
+  baseLocale: 'en',
+  extractionFile: 'locales/extracted.json',
+  locales: [{
+    name: 'English (US)',
+    code: 'en-us',
+    file: 'locales/en.locales.json',
+  }],
+  patterns: [{
+    pattern: String.raw`{{fn}}\s*\(\s*(['"])(.*?)\1\s*,`,
+    extensions: ['js', 'jsx', 'ts', 'tsx'],
+  }, {
+    pattern: String.raw`{{fn}}\s*\(\s*(['"])(.*?)\1\s*,`,
+    extensions: ['coffee'],
+  }],
+}
+
+export default new Config(loadRc('ubersetz', defaultConfig))

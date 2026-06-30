@@ -1,0 +1,36 @@
+{
+  "name": "ubersetz-plugin-deepl",
+  "version": "1.5.0",
+  "description": "",
+  "main": "./dist/index.cjs.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "typesVersions": {
+    "*": {
+      "*": [
+        "./dist/*",
+        "./dist/index.d.ts"
+      ]
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "rimraf dist && vite build",
+    "test": "vitest",
+    "lint": "eslint ."
+  },
+  "keywords": [],
+  "author": "Max Nowack <max.nowack@gmail.com>",
+  "license": "MIT",
+  "dependencies": {
+    "deapl": "^2.2.4",
+    "deepl-node": "^1.14.0",
+    "p-queue": "^6.6.2",
+    "p-retry": "^4.6.1"
+  },
+  "devDependencies": {
+    "@ubersetz/cli": "^1.4.10"
+  }
+}

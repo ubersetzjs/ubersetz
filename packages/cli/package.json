@@ -1,0 +1,34 @@
+{
+  "name": "@ubersetz/cli",
+  "version": "3.0.0-beta.5",
+  "description": "",
+  "main": "dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "ubersetz": "dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "rimraf dist && vite build && chmod +x dist/index.js",
+    "test": "vitest",
+    "lint": "eslint ."
+  },
+  "keywords": [],
+  "author": "Max Nowack <max.nowack@gmail.com>",
+  "license": "MIT",
+  "dependencies": {
+    "@messageformat/parser": "^5.1.1",
+    "global-dirs": "^2.1.0",
+    "ignore-walk": "^3.0.3",
+    "listr": "^0.14.3",
+    "lodash.sortby": "^4.7.0",
+    "p-filter": "^2.1.0",
+    "p-map": "^4.0.0",
+    "p-queue": "^6.6.2",
+    "rc": "^1.2.8",
+    "rxjs": "^6.6.3",
+    "yargs": "^17.2.1"
+  }
+}
