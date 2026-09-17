@@ -204,7 +204,43 @@ Ubersetz stores locale messages as flat JSON maps:
 }
 ```
 
-At runtime, these strings are compiled with MessageFormat for the active locale.
+At runtime, these strings are compiled with MessageFormat for the active locale,
+and each string compiles the first time something reads it rather than when the
+file is loaded.
+
+### Splitting a locale across files
+
+A locale may declare `chunks`. Each chunk claims the keys its `match`
+expression matches; everything else stays in the locale's own `file`:
+
+```json
+{
+  "locales": [
+    {
+      "name": "German",
+      "code": "de-de",
+      "file": "locales/de-de.json",
+      "chunks": [
+        {
+          "file": "locales/de-de.reference.json",
+          "match": "^reference\\."
+        }
+      ]
+    }
+  ]
+}
+```
+
+`match` is a regular expression source, tested against the phrase key. The
+first chunk that matches wins, and a chunk may not write to the locale's own
+file. Extraction, deletion, the base-locale copy, invalidation and
+autotranslation all read a locale as the union of its files and write each key
+back to the file that claims it — so changing an expression moves phrases
+between files on the next run without ever losing a translation.
+
+This is a build-time split for a runtime choice: load the locale's own file up
+front and merge a chunk in later with `loadLocale(locale, phrases, { merge: true })`
+when the screen that reads it is opened.
 
 ## Legacy plural compatibility
 

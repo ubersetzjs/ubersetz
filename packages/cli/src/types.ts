@@ -1,7 +1,20 @@
+export interface LocaleChunk {
+  file: string,
+  /** Regular expression source, tested against the phrase key. */
+  match: string,
+}
+
 export interface Locale {
   name: string,
   code: string,
   file: string,
+  /**
+   * Files that claim part of this locale rather than all of it. A key the
+   * first matching chunk claims is written there; everything else goes to
+   * `file`. Lets a consumer load the part of a catalogue it needs up front
+   * and defer the rest.
+   */
+  chunks?: LocaleChunk[],
   autotranslate?: boolean,
   informal?: boolean,
   invalidateOnChange?: boolean,

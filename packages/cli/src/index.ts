@@ -13,6 +13,7 @@ import extractPhrase from './extractPhrase'
 import type { CliOptions, Context, Phrase } from './types'
 import canReadFile from './utils/canReadFile'
 import getPhrasesFromFile from './utils/getPhrasesFromFile'
+import { getLocaleFiles, readLocalePhrases, writeLocalePhrases } from './utils/localeFiles'
 import getCountryFlag from './utils/getCountryFlag'
 import getAutotranslationPlugin from './getAutotranslationPlugin'
 import autotranslatePhrases from './autotranslatePhrases'
@@ -40,7 +41,7 @@ function getMigratedPhrases(phrases: Record<string, string>) {
 async function migrateLocaleFiles(dryRun: boolean) {
   const files = [
     config.getExtractionFilePath(),
-    ...config.getLocales().map(locale => locale.file),
+    ...config.getLocales().flatMap(locale => getLocaleFiles(locale)),
   ]
   const uniqueFiles = [...new Set(files)]
   let changedFiles = 0
@@ -97,7 +98,7 @@ async function invalidateChangedPhrases(
     let invalidateAskLocales = invalidateAll
     if (!invalidateAll && askLocales.length > 0 && process.stdout.isTTY) {
       const askPhrases = await Promise.all(
-        askLocales.map(l => getPhrasesFromFile(l.file).then(getMigratedPhrases)),
+        askLocales.map(l => readLocalePhrases(l).then(getMigratedPhrases)),
       )
       const hasTranslation = askPhrases.some(phrases => phrases[key] != null)
       if (hasTranslation) {
@@ -123,11 +124,11 @@ async function invalidateChangedPhrases(
     ]
 
     await Promise.all(localesToInvalidate.map(async (locale) => {
-      const phrases = getMigratedPhrases(await getPhrasesFromFile(locale.file))
+      const phrases = getMigratedPhrases(await readLocalePhrases(locale))
       if (phrases[key] == null) return
       const updated = { ...phrases }
       delete updated[key]
-      await writeLocale(locale.file, updated)
+      await writeLocalePhrases(locale, updated)
       count++
     }))
   }
@@ -230,7 +231,7 @@ async function runExtraction(options: CliOptions) {
     skip: () => !options.delete || config.getLocales().length <= 0,
     task: async (context) => {
       await Promise.all(config.getLocales().map(async (locale) => {
-        const phrases = getMigratedPhrases(await getPhrasesFromFile(locale.file))
+        const phrases = getMigratedPhrases(await readLocalePhrases(locale))
         const newPhrases = Object.keys(context.extractedPhrases)
           .reduce<Record<string, string>>((memo, key) => {
             if (!phrases[key]) return memo
@@ -239,12 +240,7 @@ async function runExtraction(options: CliOptions) {
               [key]: phrases[key],
             }
           }, {})
-        const [currentString, newString] = await Promise.all([
-          stringify(sortObject(phrases)),
-          stringify(sortObject(newPhrases)),
-        ])
-        if (currentString === newString) return
-        await writeLocale(locale.file, newPhrases)
+        await writeLocalePhrases(locale, newPhrases)
       }))
     },
   }, {
@@ -254,7 +250,7 @@ async function runExtraction(options: CliOptions) {
     task: async (context) => {
       const baseLocale = config.getLocales().find(i => i.base)
       if (!baseLocale) return
-      const currentPhrases = await getPhrasesFromFile(baseLocale.file)
+      const currentPhrases = await readLocalePhrases(baseLocale)
       const migratedPhrases = getMigratedPhrases(currentPhrases)
       const phraseEntries = Object.keys(context.extractedPhrases)
         .map((key) => {
@@ -267,14 +263,14 @@ async function runExtraction(options: CliOptions) {
           ]
         })
       const sortedPhrases = Object.fromEntries(phraseEntries) as Record<string, string>
-      await writeLocale(baseLocale.file, sortedPhrases)
+      await writeLocalePhrases(baseLocale, sortedPhrases)
     },
   }, {
     title: 'checking existing phrases',
     skip: () => config.getLocales().length <= 0,
     task: async (context) => {
       context.locales = await pMap(config.getLocales(), async (locale) => {
-        const phrases = getMigratedPhrases(await getPhrasesFromFile(locale.file))
+        const phrases = getMigratedPhrases(await readLocalePhrases(locale))
         const translated: string[] = []
         const untranslated: string[] = []
         Object.keys(context.extractedPhrases).forEach((key) => {

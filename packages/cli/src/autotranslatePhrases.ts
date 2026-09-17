@@ -2,6 +2,7 @@ import pMap from 'p-map'
 import { Observable } from 'rxjs'
 import type { AutotranslationFunction, Context } from './types'
 import addPhraseToFile from './utils/addPhraseToFile'
+import { getFileForKey } from './utils/localeFiles'
 import translateMessageFormat from './utils/translateMessageFormat'
 
 const MAX_RETRIES = 5
@@ -77,7 +78,7 @@ const autotranslatePhrases = ({
       locale.autotranslated.push(key)
       count += 1
       update()
-      await addPhraseToFile(locale.file, key, text)
+      await addPhraseToFile(getFileForKey(locale, key), key, text)
     }, { concurrency })
   }
   promise()
