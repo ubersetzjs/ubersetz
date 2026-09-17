@@ -9,6 +9,15 @@ type CompiledMessage = (parameters?: Record<string, ParameterValue>) => string
 type CompiledPhraseMap = Record<string, CompiledMessage>
 type LocaleChangeListener = (locale: string) => void
 
+export type LoadLocaleOptions = {
+  /**
+   * Add the phrases to the ones the locale already holds instead of replacing
+   * them. Use it to load a locale in chunks, so a consumer can defer the part
+   * of a catalogue that its first screen never shows.
+   */
+  merge?: boolean,
+}
+
 function getTranslationArguments(
   parametersOrDefaultValue: TranslateInput,
   defaultValue?: string,
@@ -70,16 +79,30 @@ class LocaleManager {
     }
   }
 
-  public loadLocaleSync(locale: string, fileOrMessages?: PhraseMap) {
+  public loadLocaleSync(locale: string, fileOrMessages?: PhraseMap, options?: LoadLocaleOptions) {
     if (!fileOrMessages) {
       throw new Error(`Cannot load locale '${locale}' without filename or phrases provided`)
     }
+
+    const loaded = this.phraseCache[locale]
+    if (options?.merge && loaded) {
+      this.phraseCache[locale] = { ...loaded, ...fileOrMessages }
+      // Only the incoming keys can have changed meaning; everything already
+      // compiled stays compiled.
+      const compiled = this.compiledCache[locale] ?? {}
+      for (const key of Object.keys(fileOrMessages)) {
+        delete compiled[key]
+      }
+      this.compiledCache[locale] = compiled
+      return
+    }
+
     this.phraseCache[locale] = fileOrMessages
-    this.compiledCache[locale] = this.compilePhraseMap(locale, fileOrMessages)
+    this.compiledCache[locale] = {}
   }
 
-  public async loadLocale(locale: string, fileOrMessages?: PhraseMap) {
-    this.loadLocaleSync(locale, fileOrMessages)
+  public async loadLocale(locale: string, fileOrMessages?: PhraseMap, options?: LoadLocaleOptions) {
+    this.loadLocaleSync(locale, fileOrMessages, options)
   }
 
   public translate(key: string, defaultValue: string): string
@@ -126,8 +149,7 @@ class LocaleManager {
   ) {
     const translationArguments = getTranslationArguments(parametersOrDefaultValue, defaultValue)
     const phrases = this.phraseCache[locale]
-    const compiledPhrases = this.compiledCache[locale]
-    if (!phrases || !compiledPhrases) {
+    if (!phrases) {
       throw new Error(`Locale '${locale}' not loaded`)
     }
 
@@ -136,9 +158,7 @@ class LocaleManager {
       && translationArguments.parameters.count !== 1
       && phrases[pluralKey] != null
 
-    const compiled = shouldUseV1Plural
-      ? compiledPhrases[pluralKey]
-      : compiledPhrases[key]
+    const compiled = this.getCompiledPhrase(locale, shouldUseV1Plural ? pluralKey : key)
 
     if (compiled) {
       return compiled(translationArguments.parameters ?? undefined)
@@ -163,11 +183,24 @@ class LocaleManager {
     }
   }
 
-  private compilePhraseMap(locale: string, phrases: PhraseMap): CompiledPhraseMap {
-    return Object.fromEntries(Object.entries(phrases).map(([key, value]) => [
-      key,
-      this.compileMessage(locale, value),
-    ]))
+  /**
+   * Compiles on first use and keeps the result. Compiling a whole catalogue up
+   * front costs its whole size before a consumer has asked for a single
+   * phrase, and an app reads a small fraction of one per screen.
+   */
+  private getCompiledPhrase(locale: string, key: string): CompiledMessage | undefined {
+    const phrase = this.phraseCache[locale]?.[key]
+    if (phrase == null) return undefined
+
+    const compiledPhrases = this.compiledCache[locale] ?? {}
+    this.compiledCache[locale] = compiledPhrases
+
+    const cached = compiledPhrases[key]
+    if (cached) return cached
+
+    const compiled = this.compileMessage(locale, phrase)
+    compiledPhrases[key] = compiled
+    return compiled
   }
 
   private compileMessage(locale: string, value: string): CompiledMessage {

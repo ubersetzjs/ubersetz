@@ -88,6 +88,25 @@ await setLocale('en-us', enUs)
 console.log(getLocale())
 ```
 
+### Load a locale in chunks
+
+A catalogue that a first screen barely touches does not have to be there when
+it renders. `loadLocale` adds phrases to the ones a locale already holds when
+you ask it to merge, so the rest can follow whenever the screen that needs it
+is opened:
+
+```ts
+import { setLocale, loadLocale } from "ubersetz"
+
+await setLocale("en-us", await import("./locales/en-us.json"))
+
+// later, when the screen that reads them is opened
+await loadLocale("en-us", await import("./locales/en-us.reference.json"), { merge: true })
+```
+
+Phrases compile on first use, so loading a chunk costs no more than the object
+itself, and only the phrases something actually reads are ever compiled.
+
 ### Extract phrases
 
 ```sh
